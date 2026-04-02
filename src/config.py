@@ -31,6 +31,7 @@ def get_env(
     return value
 
 # Executable Paths
+PATH_PYTHON:  str = get_env("PATH_PYTHON" , "py" )
 PATH_RHUBARB: str = get_env("PATH_RHUBARB", "rhubarb")
 PATH_GODOT:   str = get_env("PATH_GODOT"  , "godot"  )
 PATH_FFMPEG:  str = get_env("PATH_FFMPEG" , "ffmpeg" )

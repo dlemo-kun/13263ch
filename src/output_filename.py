@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 def get_unique_filename(base_path: Path, suffix: str) -> Path:
