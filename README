@@ -1,0 +1,119 @@
+# 13263ch - Automated Lip-Sync Video Generator
+
+- **Version:** 2.25.0b
+
+[ **English** | [Español](#español) | [日本語](#日本語) ]
+
+---
+
+## English
+
+### What is this?
+**13263ch** is an automated tool designed to generate lip-sync videos from an audio file. It orchestrates a workflow that analyzes speech and renders a character's mouth movements in a video format.
+
+### How to Run
+
+#### 1. Prerequisites
+Ensure you have the following tools installed and accessible in your system path:
+- **Python 3.x**
+- **Godot Engine 4.x**
+- **Rhubarb Lip Sync**
+- **FFmpeg**
+
+#### 2. Installation
+Clone the repository and install the Python dependencies:
+```bash
+git clone https://github.com/dlemo-kun/13263ch.git
+cd 13263ch
+pip install -r requirements.txt
+```
+
+#### 3. Configuration
+Create a `.env` file in the root directory (copy the existing `.env` template) and set the paths to your executables:
+```env
+PATH_RHUBARB="C:/path/to/rhubarb.exe"
+PATH_GODOT="C:/path/to/godot.exe"
+PATH_FFMPEG="C:/path/to/ffmpeg.exe"
+```
+
+#### 4. Execution
+Run the main script providing an input audio file and the desired output video name:
+```bash
+python main.py --audio ./test/test.wav --output ./test/test.mp4
+```
+
+---
+
+## Español
+
+### ¿Qué es esto?
+**13263ch** es una herramienta automatizada diseñada para generar videos con sincronización labial (lip-sync) a partir de un archivo de audio. Coordina un flujo de trabajo que analiza el habla y renderiza los movimientos de la boca de un personaje en formato de video.
+
+### Cómo Ejecutarlo
+
+#### 1. Requisitos Previos
+Asegúrate de tener instaladas las siguientes herramientas y que sean accesibles desde la terminal:
+- **Python 3.x**
+- **Godot Engine 4.x**
+- **Rhubarb Lip Sync**
+- **FFmpeg**
+
+#### 2. Instalación
+Clona el repositorio e instala las dependencias de Python:
+```bash
+git clone https://github.com/dlemo-kun/13263ch.git
+cd 13263ch
+pip install -r requirements.txt
+```
+
+#### 3. Configuración
+Crea un archivo `.env` en el directorio raíz (puedes basarte en el archivo `.env` de ejemplo) y define las rutas de tus ejecutables:
+```env
+PATH_RHUBARB="C:/path/to/rhubarb.exe"
+PATH_GODOT="C:/path/to/godot.exe"
+PATH_FFMPEG="C:/path/to/ffmpeg.exe"
+```
+
+#### 4. Ejecución
+Ejecuta el script principal indicando el archivo de audio de entrada y el nombre del video de salida:
+```bash
+python main.py --audio ./test/test.wav --output ./test/test.mp4
+```
+
+---
+
+## 日本語
+
+### これは何ですか？
+**13263ch** は、オーディオファイルからリップシンク（口パク）動画を自動生成するためのツールです。音声解析からキャラクターの口の動きのレンダリングまでの一連のワークフローを自動化します。
+
+### 実行方法
+
+#### 1. 前提条件
+以下のツールがインストールされ、システムパスからアクセスできることを確認してください：
+- **Python 3.x**
+- **Godot Engine 4.x**
+- **Rhubarb Lip Sync**
+- **FFmpeg**
+
+#### 2. インストール
+リポジトリをクローンし、Python の依存関係をインストールします：
+```bash
+git clone https://github.com/dlemo-kun/13263ch.git
+cd 13263ch
+pip install -r requirements.txt
+```
+
+#### 3. 設定
+ルートディレクトリに `.env` ファイルを作成し（既存のテンプレートをコピー）、各実行ファイルのパスを設定します：
+```env
+PATH_RHUBARB="C:/path/to/rhubarb.exe"
+PATH_GODOT="C:/path/to/godot.exe"
+PATH_FFMPEG="C:/path/to/ffmpeg.exe"
+```
+
+#### 4. 実行
+入力オーディオファイルと出力ビデオ名を指定して、メインスクリプトを実行します：
+```bash
+python main.py --audio ./test/test.wav --output ./test/test.mp4
+```
