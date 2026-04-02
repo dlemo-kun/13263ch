@@ -1,0 +1,14 @@
+# Python 3+ specific ignores
+__pycache__
+*.pyc
+# Godot 4+ specific ignores
+.godot/
+/android/
+# 13263ch specific ignores
+lip_sync.json
+lip_sync.tsv
+*.avi
+*.mp4
+*.bat
+*.ps1
+*.dltc
