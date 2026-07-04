@@ -3,14 +3,16 @@ import tempfile
 import sys
 import os
 from pathlib import Path
-from src.config import PATH_RHUBARB, PATH_GODOT
+from src.config import PATH_RHUBARB, PATH_GODOT, VERSION
 from src.format_factory import tsv_to_json, to_mp4
 from src.subprocess_run import sp_run
 from src.output_filename import get_unique_filename
 
 def main(
         audio_input: str,
-        video_output: str
+        video_output: str,
+        color: str = "#ffffffff",
+        character: str = "none"
     ) -> int:
 
     """
@@ -54,7 +56,8 @@ def main(
         if tsv_to_json(
             tsv_input=tmp_tsv,
             json_output=tmp_json,
-            hex_background="#ffffffff",
+            character=character,
+            hex_background=color,
             language="es"
         ): 
             print(f"[ERROR] TSV to JSON conversion failed for '{tmp_tsv}'")
@@ -89,7 +92,8 @@ def main(
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Generate a lip-sync video from an audio file."
+        description="Generate a lip-sync video from an audio file.",
+        formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
         "audio_input",
@@ -99,9 +103,33 @@ if __name__ == "__main__":
     parser.add_argument(
         "-o", "--output",
         type=str,
-        help="Path for the output video file (.mp4). If not specified,     "
-             "it will be generated in the same directory as the audio file "
-             "with a .mp4 extension and an incremental suffix if it exists."
+        help="Path for the output video file (.mp4). \nIf not specified, it will be generated in the same directory as the audio file with a .mp4 extension and an incremental suffix if it exists."
+    )
+    parser.add_argument(
+        "-c", "--color",
+        type=str,
+        help="Background color of the video. \nCan be a color name or a hex code (e.g., 'black' or '#000000')."
+    )
+
+
+    parser.add_argument(
+        "-ch", "--character",
+        type=str,
+        help="""Character model:
+┌──────┬─────────────┬────────────────────────────┐
+│ ID   │ Name        │ Creator/s                  │
+├──────┼─────────────┼────────────────────────────┤
+│ none │ None        │ dlemo-kun and Nano Banana  │
+│ nofe │ None Female │ Elytra and Nano Banana Pro │
+│ ?    │ ?           │ Karla Castellanos García   │
+└──────┴─────────────┴────────────────────────────┘
+"""
+    )
+    parser.add_argument(
+        "-v", "--version",
+        action= "version",
+        version=f"[INFO] 13263ch {VERSION} <https://github.com/dlemo-kun/13263ch>",
+        help=""
     )
 
     args = parser.parse_args()
@@ -118,14 +146,31 @@ if __name__ == "__main__":
         base_video_name = audio_path.stem
         base_video_path = audio_path.parent / f"{base_video_name}.mp4"
         video_output_path = get_unique_filename(base_video_path, ".mp4")
+    
+    color: str
+    if args.color:
+        color = args.color
+    else:
+        color = "#ffffffff"
+        
+    character: str
+    if args.character:
+        character = args.character
+    else:
+        character = "none"
+    
 
     print(f"[INFO] Audio input: {audio_path}")
     print(f"[INFO] Video output: {video_output_path}")
+    print(f"[INFO] Background color: {color}")
+    print(f"[INFO] Character: {character}")
 
     sys.exit(
         main(
             audio_input=str(audio_path),
-            video_output=str(video_output_path)
+            video_output=str(video_output_path),
+            color=color,
+            character=character
         )
     )
 

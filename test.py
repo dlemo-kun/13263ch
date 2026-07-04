@@ -8,7 +8,8 @@ if __name__ == "__main__":
             PATH_PYTHON,
             "main.py",
             f"./test/test_{i}.wav",
-            "--output",  f"./test/test_{i}.mp4"
+            "--output",  f"./test/test_{i}.mp4",
+            "--character", "nofe"
         ]
         
         sp_run(

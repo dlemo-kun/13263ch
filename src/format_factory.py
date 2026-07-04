@@ -16,6 +16,7 @@ from src.subprocess_run import sp_run
 def tsv_to_json(
         tsv_input: str, 
         json_output: str, 
+        character: str = "none",
         hex_background: str = "#fff", 
         language: str = "en_US",
         fps: int = 24
@@ -98,7 +99,7 @@ def tsv_to_json(
             current_num = events[current_event_idx][1]
             current_event_idx += 1
             
-        name_png: str = f"none_{bl.blink_state()}{current_num}"
+        name_png: str = f"{character}_{bl.blink_state()}{current_num}"
         
         frame_data: list = [round(current_frame_time, 4), name_png, hex_background]
         final_list.append(frame_data)

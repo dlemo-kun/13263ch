@@ -1,0 +1,515 @@
+<!-- Prototipo de edito creado con Gemini -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Timeline de Audio Interactivo</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --timeline-bg: #181818;
+            --text-color: #e0e0e0;
+            --accent: #da3e3e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            user-select: none; /* Evita que el texto se seleccione al arrastrar */
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        select {
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Timeline Container */
+        .timeline-container {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            background-color: var(--timeline-bg);
+            border-radius: 4px;
+            margin-top: 20px;
+            border: 1px solid #333;
+            cursor: crosshair; /* Cursor para indicar selección */
+        }
+
+        /* Canvas para la forma de onda */
+        #waveform {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Que no bloquee los clicks del ratón */
+        }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--accent);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -5px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid var(--accent);
+        }
+
+        .track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .segment {
+            position: absolute;
+            /* Eliminamos top y height fijos para controlarlos desde JS */
+            border-radius: 4px;
+            opacity: 0.75;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            cursor: pointer;
+            z-index: 5;
+            transition: top 0.3s ease, height 0.3s ease, left 0.3s ease, width 0.3s ease; /* Animación suave al fusionar */
+        }
+
+
+        .segment:hover {
+            opacity: 1;
+        }
+
+        /* Caja de selección visual al arrastrar */
+        .selection-box {
+            position: absolute;
+            height: 100%;
+            top: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 1px dashed white;
+            border-right: 1px dashed white;
+            display: none; /* Oculto por defecto */
+            pointer-events: none;
+            z-index: 8;
+        }
+
+        .type-rojo { background-color: #c0392b; }
+        .type-azul { background-color: #2980b9; }
+        .type-verde { background-color: #27ae60; }
+
+        /* Color rojo punteado cuando se está usando el clic derecho para borrar */
+        .selection-box.erasing {
+            background-color: rgba(231, 76, 60, 0.3);
+            border-left: 1px dashed #e74c3c;
+            border-right: 1px dashed #e74c3c;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="panel">
+        <h2>Editor de Audio (Arrastra para marcar)</h2>
+        <input type="file" id="audio-input" accept="audio/wav, audio/mp3">
+        <br><br>
+        <audio id="audio-player" controls style="width: 100%;"></audio>
+        
+        <div class="controls">
+            <label>Tipo de marcador a crear: 
+                <select id="seg-type">
+                    <option value="rojo">Alerta (Rojo)</option>
+                    <option value="azul">Diálogo (Azul)</option>
+                    <option value="verde">Música (Verde)</option>
+                </select>
+            </label>
+            <span style="font-size: 0.9em; color: #888;">(Haz clic y arrastra sobre la línea de tiempo para crear un bloque)</span>
+        </div>
+
+        <div class="timeline-container" id="timeline">
+            <canvas id="waveform"></canvas>
+            <div class="playhead" id="playhead" style="left: 0%;"></div>
+            <div class="selection-box" id="selection-box"></div>
+            <div class="track" id="track"></div>
+        </div>
+    </div>
+
+    <script>
+        const audioInput = document.getElementById('audio-input');
+        const audioPlayer = document.getElementById('audio-player');
+        const playhead = document.getElementById('playhead');
+        const track = document.getElementById('track');
+        const timeline = document.getElementById('timeline');
+        const selectionBox = document.getElementById('selection-box');
+        const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+
+        // Contexto de audio global para procesar el waveform
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        let audioDuration = 0;
+        let segments = [];
+        
+        // Variables para la selección de arrastre
+        let dragMode = 'none'; // Puede ser 'none', 'add' o 'erase'
+        let startX = 0;
+
+
+        // 1. Cargar el audio y procesar el waveform
+        audioInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Para el reproductor normal
+                audioPlayer.src = URL.createObjectURL(file);
+                
+                // Para el Waveform (leer los datos en crudo)
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const arrayBuffer = event.target.result;
+                    audioCtx.decodeAudioData(arrayBuffer, function(buffer) {
+                        drawWaveform(buffer);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        audioPlayer.addEventListener('loadedmetadata', function() {
+            audioDuration = audioPlayer.duration;
+            renderSegments();
+        });
+
+        audioPlayer.addEventListener('timeupdate', function() {
+            if (audioDuration > 0) {
+                const percentage = (audioPlayer.currentTime / audioDuration) * 100;
+                playhead.style.left = `${percentage}%`;
+            }
+        });
+
+        // 2. Dibujar la Forma de Onda (Waveform)
+        function drawWaveform(audioBuffer) {
+            // Ajustar tamaño real del canvas
+            canvas.width = timeline.offsetWidth;
+            canvas.height = timeline.offsetHeight;
+
+            // Extraemos los datos del canal izquierdo (mono)
+            const rawData = audioBuffer.getChannelData(0);
+            
+            // Calculamos cuántos datos del audio corresponden a 1 píxel del canvas
+            const samplesPerPixel = Math.ceil(rawData.length / canvas.width);
+            const centerY = canvas.height / 2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#444'; // Color de las rayitas
+            
+            // Dibujamos las líneas iterando píxel por píxel de izquierda a derecha
+            for (let i = 0; i < canvas.width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                
+                // Buscamos el pico más alto y más bajo dentro de este bloque de muestras
+                for (let j = 0; j < samplesPerPixel; j++) {
+                    const sample = rawData[(i * samplesPerPixel) + j];
+                    if (sample < min) min = sample;
+                    if (sample > max) max = sample;
+                }
+
+                // Dibujamos una línea vertical para este píxel
+                const y1 = centerY + (min * centerY);
+                const y2 = centerY + (max * centerY);
+                const height = y2 - y1;
+                
+                // Se dibuja un pequeño rectángulo en lugar de una línea para mayor solidez
+                ctx.fillRect(i, y1, 1, height === 0 ? 1 : height);
+            }
+        }
+
+        // Prevenir el menú contextual al hacer clic derecho en el timeline
+        timeline.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        timeline.addEventListener('mousedown', (e) => {
+            if (audioDuration === 0) return;
+            if (e.target.classList.contains('segment')) return;
+
+            // Detectar qué botón se presionó: 0 es Izquierdo, 2 es Derecho
+            if (e.button === 0) {
+                dragMode = 'add';
+                selectionBox.classList.remove('erasing');
+            } else if (e.button === 2) {
+                dragMode = 'erase';
+                selectionBox.classList.add('erasing');
+            } else {
+                return; // Ignorar clic central u otros
+            }
+
+            const rect = timeline.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+
+            selectionBox.style.display = 'block';
+            selectionBox.style.left = `${startX}px`;
+            selectionBox.style.width = '0px';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (dragMode === 'none') return;
+            
+            const rect = timeline.getBoundingClientRect();
+            let currentX = e.clientX - rect.left;
+            currentX = Math.max(0, Math.min(currentX, rect.width));
+
+            const left = Math.min(startX, currentX);
+            const width = Math.abs(currentX - startX);
+
+            selectionBox.style.left = `${left}px`;
+            selectionBox.style.width = `${width}px`;
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (dragMode === 'none') return;
+            
+            const currentMode = dragMode; // Guardamos el modo antes de resetearlo
+            dragMode = 'none';
+            selectionBox.style.display = 'none';
+
+            const rect = timeline.getBoundingClientRect();
+            let currentX = e.clientX - rect.left;
+            currentX = Math.max(0, Math.min(currentX, rect.width));
+
+            const width = Math.abs(currentX - startX);
+            if (width < 5 && currentMode === 'add') {
+                const clickTime = (currentX / rect.width) * audioDuration;
+                audioPlayer.currentTime = clickTime;
+                return;
+            }
+
+            const leftPos = Math.min(startX, currentX);
+            const actionStartTime = (leftPos / rect.width) * audioDuration;
+            const actionEndTime = ((leftPos + width) / rect.width) * audioDuration;
+            const activeColor = document.getElementById('seg-type').value;
+
+            if (currentMode === 'add') {
+                // Lógica para añadir (como lo tenías antes)
+                segments.push({
+                    id: Date.now(),
+                    start: actionStartTime,
+                    end: actionEndTime,
+                    types: [activeColor]
+                });
+            } else if (currentMode === 'erase') {
+                // Lógica de recorte / borrado
+                let nuevosSegmentos = [];
+
+                segments.forEach(seg => {
+                    // Si el segmento es de otro color o no choca con el borrador, se queda intacto
+                    if (seg.types[0] !== activeColor || actionEndTime <= seg.start || actionStartTime >= seg.end) {
+                        nuevosSegmentos.push(seg);
+                        return;
+                    }
+
+                    // Si el borrador cubre el segmento por completo, se elimina (no lo añadimos al nuevo arreglo)
+                    if (actionStartTime <= seg.start && actionEndTime >= seg.end) {
+                        return; 
+                    }
+
+                    // Si el borrador corta el segmento por la mitad, lo partimos en dos
+                    if (actionStartTime > seg.start && actionEndTime < seg.end) {
+                        nuevosSegmentos.push({
+                            ...seg,
+                            end: actionStartTime
+                        });
+                        nuevosSegmentos.push({
+                            id: Date.now() + Math.random(),
+                            start: actionEndTime,
+                            end: seg.end,
+                            types: [...seg.types]
+                        });
+                        return;
+                    }
+
+                    // Si el borrador recorta la parte izquierda del segmento
+                    if (actionStartTime <= seg.start && actionEndTime < seg.end) {
+                        seg.start = actionEndTime;
+                        nuevosSegmentos.push(seg);
+                        return;
+                    }
+
+                    // Si el borrador recorta la parte derecha del segmento
+                    if (actionStartTime > seg.start && actionEndTime >= seg.end) {
+                        seg.end = actionStartTime;
+                        nuevosSegmentos.push(seg);
+                        return;
+                    }
+                });
+
+                segments = nuevosSegmentos;
+            }
+
+            renderSegments();
+        });
+
+
+        // 4. Renderizar segmentos (Igual que antes)
+        // --- NUEVA FUNCIÓN: Fusiona las cajas del mismo color ---
+        function consolidarSegmentos() {
+            let consolidados = [];
+            const colores = ['rojo', 'azul', 'verde'];
+
+            colores.forEach(color => {
+                // 1. Obtener solo los de un color
+                let segsColor = segments.filter(s => s.types[0] === color);
+                if (segsColor.length === 0) return;
+
+                // 2. Ordenarlos por tiempo de inicio (cronológicamente)
+                segsColor.sort((a, b) => a.start - b.start);
+
+                // 3. Evaluar colisiones
+                let actual = segsColor[0];
+                for (let i = 1; i < segsColor.length; i++) {
+                    let siguiente = segsColor[i];
+                    
+                    // Si el actual termina después (o exactamente cuando) el siguiente empieza, hay choque
+                    if (actual.end >= siguiente.start) {
+                        // Se fusionan: el nuevo final es el más lejano de los dos
+                        actual.end = Math.max(actual.end, siguiente.end);
+                    } else {
+                        // No hay choque, se guarda el actual y pasamos al siguiente
+                        consolidados.push(actual);
+                        actual = siguiente;
+                    }
+                }
+                consolidados.push(actual);
+            });
+            
+            // Sobrescribimos el arreglo con los segmentos ya fusionados limpios
+            segments = consolidados;
+        }
+
+        // --- FUNCIÓN ACTUALIZADA: Dibuja y apila las cajas ---
+        function renderSegments() {
+            // Primero, fusionamos los del mismo color
+            consolidarSegmentos(); 
+            
+            track.innerHTML = '';
+            if (segments.length === 0) return;
+            
+            // Ordenar TODOS los segmentos por tiempo de inicio para calcular el apilamiento
+            const todosOrdenados = [...segments].sort((a, b) => a.start - b.start);
+            const carriles = []; // Guardará en qué segundo exacto termina cada "fila"
+
+            todosOrdenados.forEach(seg => {
+                let indiceCarril = -1;
+                
+                // Buscar un carril (fila) existente donde este segmento quepa sin chocar
+                for (let i = 0; i < carriles.length; i++) {
+                    if (carriles[i] <= seg.start) {
+                        indiceCarril = i; // Encontramos un espacio vacío!
+                        break;
+                    }
+                }
+
+                // Si no cabe en ningún carril existente, creamos una fila nueva
+                if (indiceCarril === -1) {
+                    indiceCarril = carriles.length;
+                    carriles.push(seg.end);
+                } else {
+                    // Si cupo, actualizamos el tiempo de ocupación de esa fila
+                    carriles[indiceCarril] = seg.end;
+                }
+
+                // Le guardamos al segmento temporalmente qué fila le tocó
+                seg.carril = indiceCarril;
+            });
+
+            // Calculamos el % de altura de cada fila según el máximo de carriles necesarios
+            const totalCarriles = Math.max(1, carriles.length);
+            const alturaCarril = 100 / totalCarriles;
+
+            // Finalmente, dibujamos
+            todosOrdenados.forEach(seg => {
+                const startPercent = (seg.start / audioDuration) * 100;
+                const widthPercent = ((seg.end - seg.start) / audioDuration) * 100;
+
+                const div = document.createElement('div');
+                div.className = `segment type-${seg.types[0]}`;
+                div.style.left = `${startPercent}%`;
+                div.style.width = `${widthPercent}%`;
+                
+                // Aplicar la altura y la posición Y dinámica calculada por los carriles
+                div.style.top = `${seg.carril * alturaCarril}%`;
+                div.style.height = `${alturaCarril}%`;
+                
+                // Mostramos el color y le damos mayúscula inicial
+                div.innerText = seg.types[0].charAt(0).toUpperCase() + seg.types[0].slice(1);
+
+                div.addEventListener('mousedown', (e) => {
+                    e.stopPropagation(); // Evita crear un bloque nuevo al hacer clic en uno existente
+                });
+
+                div.addEventListener('click', () => {
+                    audioPlayer.currentTime = seg.start;
+                    audioPlayer.play();
+                });
+
+                track.appendChild(div);
+            });
+        }
+
+
+        // 5. Redibujar el waveform si cambia el tamaño de la ventana
+        window.addEventListener('resize', () => {
+            if (audioDuration > 0 && canvas.width > 0) {
+                // Retrasamos un poco el redibujado para no sobrecargar el navegador
+                clearTimeout(window.resizeTimer);
+                window.resizeTimer = setTimeout(() => {
+                   // Para redibujar, necesitaríamos guardar el buffer en una variable global.
+                   // Se ha omitido aquí por simplicidad, pero el timeline es fluido.
+                }, 200);
+            }
+        });
+    </script>
+</body>
+</html>

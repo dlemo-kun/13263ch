@@ -1,10 +1,12 @@
 import os
 from dotenv import load_dotenv
 
-if load_dotenv():
-    print("[SUCCESS] .env file found and loaded successfully.")
-else:
-    print("[WARNING] No .env file found. Relying on system environment variables or default fallbacks.")
+load_dotenv()
+
+# if load_dotenv():
+#     print("[SUCCESS] .env file found and loaded successfully.")
+# else:
+#     print("[WARNING] No .env file found. Relying on system environment variables or default fallbacks.")
 
 def get_env(
         var_name: str, 
@@ -24,16 +26,19 @@ def get_env(
     value: str | None = os.getenv(var_name)
     
     if not value:
-        print(f"[WARNING] Environment variable '{var_name}' not set. Using default: '{default_value}'")
+        # print(f"[WARNING] Environment variable '{var_name}' not set. Using default: '{default_value}'")
         return default_value
     
-    print(f"[INFO] '{var_name}' loaded successfully: '{value}'")
+    # print(f"[INFO] '{var_name}' loaded successfully: '{value}'")
     return value
 
+
+VERSION:      str = get_env("VERSION"     , "2.25.1a")
+
 # Executable Paths
-PATH_PYTHON:  str = get_env("PATH_PYTHON" , "py" )
+PATH_PYTHON:  str = get_env("PATH_PYTHON" , "py"     )
 PATH_RHUBARB: str = get_env("PATH_RHUBARB", "rhubarb")
 PATH_GODOT:   str = get_env("PATH_GODOT"  , "godot"  )
 PATH_FFMPEG:  str = get_env("PATH_FFMPEG" , "ffmpeg" )
 
-print("[SUCCESS] All configuration variables have been set and are ready to use.\n")
+# print("[SUCCESS] All configuration variables have been set and are ready to use.\n")
